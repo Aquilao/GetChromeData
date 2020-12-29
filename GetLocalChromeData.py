@@ -71,6 +71,8 @@ def read_db(csv_path, csv_head, sql):
                     if type(r[i]) == type(114514) and r[i] > 10000000000000000:
                         timestamp = r[i]//1000000-11644473600
                         data.append((timeStamp2time(timestamp)))
+                    elif type(r[i]) == type(114514) and r[i] < 10000000000000000:
+                        data.append(r[i]/1024/1024)
                     elif type(r[i]) == type(b"Aquilao"):
                         data.append(decrypt_value_all_version(r[i]))
                     else:
@@ -98,15 +100,18 @@ def main():
     Chrome_password_csv_path = "Chrome_password.csv"
     Chrome_cookies_csv_path = "Chrome_cookies.csv"
     Chrome_history_csv_path = "Chrome_history.csv"
-    Chrome_bookmarks_csv_path = "Chrome_bookmars.csv"
+    Chrome_bookmarks_csv_path = "Chrome_bookmarks.csv"
+    Chrome_downloads_csv_path = "Chrome_downloads.csv"
     # Sql
     Login_Data_sql = "SELECT origin_url, username_value, password_value FROM logins;"
     Cookies_sql = "SELECT host_key, name, encrypted_value FROM cookies;"
     History_sql = "SELECT url, title, visit_count, last_visit_time FROM urls;"
+    Download_sql = "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
     # Csv file head
     Password_csv_head = ["url", "username", "password"]
     Cookie_csv_head = ["domain", "name", "cookies"]
     History_csv_head = ["url", "title", "visit count", "last visit time"]
+    Download_csv_head = ["target path", "url", "size(MB)", "start time", "end time"]
     # Get Chrome password
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_password_db_path
     shutil.copy2(target_db, "temp")
@@ -125,7 +130,12 @@ def main():
     print("[+] Get Chrome History From " +  target_db)
     read_db(Chrome_history_csv_path, History_csv_head, History_sql)
     print("[*] Output In " + os.getcwd() + "\\" + Chrome_history_csv_path)
-
+    # Get Download History
+    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_history_db_path
+    shutil.copy2(target_db, "temp")
+    print("[+] Get Chrome Download History From " +  target_db)
+    read_db(Chrome_downloads_csv_path, Download_csv_head, Download_sql)
+    print("[*] Output In " + os.getcwd() + "\\" + Chrome_downloads_csv_path)
 
 
 if __name__ == '__main__':
