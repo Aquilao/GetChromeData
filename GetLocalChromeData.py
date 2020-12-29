@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-# v0.1
-# https://zhuanlan.zhihu.com/p/107801509
-# https://github.com/agentzex/chrome_v80_password_grabber
+# v0.3
 
 import os
+import csv
+import time
 import json
 import base64
+import shutil
 import sqlite3
 import win32crypt
 from Crypto.Cipher import AES
-import shutil
-import csv
-import time
 
 def get_master_key():
     with open(os.environ['USERPROFILE'] + os.sep + r'AppData\Local\Google\Chrome\User Data\Local State', "r", encoding='utf-8') as f:
@@ -50,6 +48,7 @@ def decrypt_value_all_version(encrypted_value):
     return decrypted_value
 
 def timeStamp2time(timestamp):
+    timestamp = timestamp // 1000000 - 11644473600
     if timestamp > 0:
         timeArray = time.localtime(timestamp)
         otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
@@ -69,8 +68,7 @@ def read_db(csv_path, csv_head, sql):
             for r in cursor.fetchall():
                 for i in range(0, len(csv_head)):
                     if type(r[i]) == type(114514) and r[i] > 10000000000000000:
-                        timestamp = r[i]//1000000-11644473600
-                        data.append((timeStamp2time(timestamp)))
+                        data.append((timeStamp2time(r[i])))
                     elif type(r[i]) == type(114514) and r[i] < 10000000000000000:
                         data.append(r[i]/1024/1024)
                     elif type(r[i]) == type(b"Aquilao"):
@@ -88,54 +86,52 @@ def read_db(csv_path, csv_head, sql):
     except Exception as e:
         pass
 
-
+def get_data(db_path, csv_path, csv_head, sql):
+    target_db = os.environ['USERPROFILE'] + os.sep + db_path
+    shutil.copy2(target_db, "temp")
+    print("[+] Get Chrome Data From " + target_db)
+    read_db(csv_path, csv_head, sql)
+    print("[*] Output In " + os.getcwd() + "\\" + csv_path)
 
 def main():
-    # Target File path
-    Chrome_password_db_path = r"AppData\Local\Google\Chrome\User Data\Default\Login Data"
-    Chrome_cookies_db_path = r"AppData\Local\Google\Chrome\User Data\Default\Cookies"
-    Chrome_history_db_path = r"AppData\Local\Google\Chrome\User Data\Default\History"
-    Chrome_Bookmarks_file_path = r"AppData\Local\Google\Chrome\User Data\Default\Bookmarks"
-    # Result file path
-    Chrome_password_csv_path = "Chrome_password.csv"
-    Chrome_cookies_csv_path = "Chrome_cookies.csv"
-    Chrome_history_csv_path = "Chrome_history.csv"
-    Chrome_bookmarks_csv_path = "Chrome_bookmarks.csv"
-    Chrome_downloads_csv_path = "Chrome_downloads.csv"
+    # Target File Path
+    TARGET_FILE_PATH = {
+        "CHROME_PASSWORDS_DB_PATH"    : r"AppData\Local\Google\Chrome\User Data\Default\Login Data",
+        "CHROME_COOKIES_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\Cookies",
+        "CHROME_HISTORY_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\History",
+        "CHROME_BOOKMARKS_FILE_PATH" : r"AppData\Local\Google\Chrome\User Data\Default\Bookmarks"
+    }
+    # Result File Path
+    RESULT_FILE_PATH = {
+        "CHROME_PASSWORD_CSV_PATH"  : "Chrome_password.csv",
+        "CHROME_COOKIES_CSV_PATH"   : "Chrome_cookies.csv",
+        "CHROME_HISTORY_CSV_PATH"   : "Chrome_history.csv",
+        "CHROME_BOOKMARKS_CSV_PATH" : "Chrome_bookmarks.csv",
+        "CHROME_DOWNLOADS_CSV_PATH" : "Chrome_downloads.csv"
+    }
+    # Csv File Head
+    CSV_FILE_HEAD = {
+        "PASSOWRDS_CSV_HEAD" : ["url", "username", "password"],
+        "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies"],
+        "HISTORY_CSV_HEAD"   : ["url", "title", "visit count", "last visit time"],
+        "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(MB)", "start time", "end time"]
+    }
     # Sql
-    Login_Data_sql = "SELECT origin_url, username_value, password_value FROM logins;"
-    Cookies_sql = "SELECT host_key, name, encrypted_value FROM cookies;"
-    History_sql = "SELECT url, title, visit_count, last_visit_time FROM urls;"
-    Download_sql = "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
-    # Csv file head
-    Password_csv_head = ["url", "username", "password"]
-    Cookie_csv_head = ["domain", "name", "cookies"]
-    History_csv_head = ["url", "title", "visit count", "last visit time"]
-    Download_csv_head = ["target path", "url", "size(MB)", "start time", "end time"]
-    # Get Chrome password
-    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_password_db_path
-    shutil.copy2(target_db, "temp")
-    print("[+] Get Chrome Passwords From " + target_db)
-    read_db(Chrome_password_csv_path, Password_csv_head, Login_Data_sql)
-    print("[*] Output In " + os.getcwd() + "\\" + Chrome_password_csv_path)
+    SQL = {
+        "LOGIN_DATA_SQL" : "SELECT origin_url, username_value, password_value FROM logins;",
+        "COOKIES_SQL"    : "SELECT host_key, name, encrypted_value FROM cookies;",
+        "HISTORY_SQL"    : "SELECT url, title, visit_count, last_visit_time FROM urls;",
+        "DOWNLOADS_SQL"   : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
+    }
+    # Get Chrome Password
+    get_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
     # Get Chrome Cookies
-    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_cookies_db_path
-    shutil.copy2(target_db, "temp")
-    print("[+] Get Chrome Cookies From " + target_db)
-    read_db(Chrome_cookies_csv_path, Cookie_csv_head, Cookies_sql)
-    print("[*] Output In " + os.getcwd() + "\\" + Chrome_cookies_csv_path)
+    get_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"])
     # Get History
-    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_history_db_path
-    shutil.copy2(target_db, "temp")
-    print("[+] Get Chrome History From " +  target_db)
-    read_db(Chrome_history_csv_path, History_csv_head, History_sql)
-    print("[*] Output In " + os.getcwd() + "\\" + Chrome_history_csv_path)
+    get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
     # Get Download History
-    target_db = os.environ['USERPROFILE'] + os.sep + Chrome_history_db_path
-    shutil.copy2(target_db, "temp")
-    print("[+] Get Chrome Download History From " +  target_db)
-    read_db(Chrome_downloads_csv_path, Download_csv_head, Download_sql)
-    print("[*] Output In " + os.getcwd() + "\\" + Chrome_downloads_csv_path)
+    get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
+
 
 
 if __name__ == '__main__':
