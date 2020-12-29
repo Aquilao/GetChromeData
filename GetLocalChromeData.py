@@ -39,6 +39,16 @@ def decrypt_value(buff, master_key):
     except Exception as e:
         return "Error!"
 
+def decrypt_value_all_version(encrypted_value):
+    master_key = get_master_key()
+    if encrypted_value[0:3] == b'v10':
+        # Chrome > 80
+        decrypted_value = decrypt_value(encrypted_value, master_key)
+    else:
+        # Chrome < 80
+        decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
+    return decrypted_value
+
 def timeStamp2time(timestamp):
     if timestamp > 0:
         timeArray = time.localtime(timestamp)
@@ -47,49 +57,26 @@ def timeStamp2time(timestamp):
     else:
         return "Unknown"
 
-
-def read_decrypt_db(csv_path, sql):
-    master_key = get_master_key()
+def read_db(csv_path, csv_head, sql):
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
-    with open(csv_path,'a+') as csv_file:
-        try:
-            cursor.execute(sql)
-            for r in cursor.fetchall():
-                data1 = r[0]
-                data2 = r[1]
-                encrypted_value = r[2]
-                if encrypted_value[0:3] == b'v10':
-                    # Chrome > 80
-                    decrypted_value = decrypt_value(encrypted_value, master_key)
-                else:
-                    # Chrome < 80
-                    decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
-                csv_file.write(data1 + ',' + data2 + ',' + decrypted_value + "\n")
-        except Exception as e:
-            print("error")
-    cursor.close()
-    conn.close()
-    try:
-        os.remove("temp")
-    except Exception as e:
-        pass
-
-def read_db(csv_path, sql):
-    conn = sqlite3.connect("temp")
-    cursor = conn.cursor()
-    with open(csv_path, 'w', newline='', encoding = "utf-8-sig") as csv_file:
+    with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
         try:
             cursor.execute(sql)
             csvwriter = csv.writer(csv_file, dialect=("excel"))
-            csvwriter.writerow(["url", "title", "visit count", "last visit time"])
+            csvwriter.writerow(csv_head)
+            data = []
             for r in cursor.fetchall():
-                data1 = r[0]
-                data2 = r[1]
-                data3 = r[2]
-                timestamp = r[3]//1000000-11644473600
-                #csvwriter.writerow([data1, data2, str(data3), str(time), str(timeStamp2time(time))])
-                csvwriter.writerow([data1, data2, str(data3), str(timeStamp2time(timestamp))])
+                for i in range(0, len(csv_head)):
+                    if type(r[i]) == type(114514) and r[i] > 10000000000000000:
+                        timestamp = r[i]//1000000-11644473600
+                        data.append((timeStamp2time(timestamp)))
+                    elif type(r[i]) == type(b"Aquilao"):
+                        data.append(decrypt_value_all_version(r[i]))
+                    else:
+                        data.append(r[i])
+                csvwriter.writerow(data)
+                data = []
         except Exception as e:
             print(e)
     cursor.close()
@@ -113,27 +100,32 @@ def main():
     Chrome_history_csv_path = "Chrome_history.csv"
     Chrome_bookmarks_csv_path = "Chrome_bookmars.csv"
     # Sql
-    Login_Data_sql = "SELECT action_url, username_value, password_value FROM logins;"
+    Login_Data_sql = "SELECT origin_url, username_value, password_value FROM logins;"
     Cookies_sql = "SELECT host_key, name, encrypted_value FROM cookies;"
     History_sql = "SELECT url, title, visit_count, last_visit_time FROM urls;"
+    # Csv file head
+    Password_csv_head = ["url", "username", "password"]
+    Cookie_csv_head = ["domain", "name", "cookies"]
+    History_csv_head = ["url", "title", "visit count", "last visit time"]
     # Get Chrome password
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_password_db_path
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome Passwords From " + target_db)
-    read_decrypt_db(Chrome_password_csv_path, Login_Data_sql)
+    read_db(Chrome_password_csv_path, Password_csv_head, Login_Data_sql)
     print("[*] Output In " + os.getcwd() + "\\" + Chrome_password_csv_path)
     # Get Chrome Cookies
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_cookies_db_path
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome Cookies From " + target_db)
-    read_decrypt_db(Chrome_cookies_csv_path, Cookies_sql)
+    read_db(Chrome_cookies_csv_path, Cookie_csv_head, Cookies_sql)
     print("[*] Output In " + os.getcwd() + "\\" + Chrome_cookies_csv_path)
     # Get History
     target_db = os.environ['USERPROFILE'] + os.sep + Chrome_history_db_path
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome History From " +  target_db)
-    read_db(Chrome_history_csv_path, History_sql)
+    read_db(Chrome_history_csv_path, History_csv_head, History_sql)
     print("[*] Output In " + os.getcwd() + "\\" + Chrome_history_csv_path)
+
 
 
 if __name__ == '__main__':
