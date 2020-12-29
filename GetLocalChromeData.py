@@ -10,6 +10,8 @@ import sqlite3
 import win32crypt
 from Crypto.Cipher import AES
 import shutil
+import csv
+import time
 
 def get_master_key():
     with open(os.environ['USERPROFILE'] + os.sep + r'AppData\Local\Google\Chrome\User Data\Local State', "r", encoding='utf-8') as f:
@@ -37,11 +39,20 @@ def decrypt_value(buff, master_key):
     except Exception as e:
         return "Error!"
 
+def timeStamp2time(timestamp):
+    if timestamp > 0:
+        timeArray = time.localtime(timestamp)
+        otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
+        return otherStyleTime
+    else:
+        return "Unknown"
+
+
 def read_decrypt_db(csv_path, sql):
     master_key = get_master_key()
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
-    with open(csv_path,'a+') as data:
+    with open(csv_path,'a+') as csv_file:
         try:
             cursor.execute(sql)
             for r in cursor.fetchall():
@@ -54,10 +65,9 @@ def read_decrypt_db(csv_path, sql):
                 else:
                     # Chrome < 80
                     decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
-                data.write(data1 + ',' + data2 + ',' + decrypted_value + "\n")
+                csv_file.write(data1 + ',' + data2 + ',' + decrypted_value + "\n")
         except Exception as e:
-            print('error')
-        data.close()
+            print("error")
     cursor.close()
     conn.close()
     try:
@@ -68,18 +78,20 @@ def read_decrypt_db(csv_path, sql):
 def read_db(csv_path, sql):
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
-    with open(csv_path, 'a+', encoding = "utf-8-sig") as data:
+    with open(csv_path, 'w', newline='', encoding = "utf-8-sig") as csv_file:
         try:
             cursor.execute(sql)
+            csvwriter = csv.writer(csv_file, dialect=("excel"))
+            csvwriter.writerow(["url", "title", "visit count", "last visit time"])
             for r in cursor.fetchall():
                 data1 = r[0]
                 data2 = r[1]
                 data3 = r[2]
-                time = r[3]
-                data.write(data1 + ',' + data2 + ',' + str(data3) + ',' + str(time) + "\n")
+                timestamp = r[3]//1000000-11644473600
+                #csvwriter.writerow([data1, data2, str(data3), str(time), str(timeStamp2time(time))])
+                csvwriter.writerow([data1, data2, str(data3), str(timeStamp2time(timestamp))])
         except Exception as e:
             print(e)
-        data.close()
     cursor.close()
     conn.close()
     try:
