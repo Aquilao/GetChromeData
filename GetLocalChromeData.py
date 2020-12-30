@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# v0.5
+# Get Chrome Data
+# v0.6
 
 import os
 import re
@@ -21,23 +22,19 @@ def get_master_key():
     master_key = win32crypt.CryptUnprotectData(master_key, None, None, None, 0)[1]
     return master_key
 
-def decrypt_payload(cipher, payload):
-    return cipher.decrypt(payload)
-
-def generate_cipher(aes_key, iv):
-    return AES.new(aes_key, AES.MODE_GCM, iv)
-
+# Decrypt encrypted value in Chrome version < 80
 def decrypt_value(buff, master_key):
     try:
         iv = buff[3:15]
         payload = buff[15:]
-        cipher = generate_cipher(master_key, iv)
-        decrypted_pass = decrypt_payload(cipher, payload)
+        cipher = AES.new(master_key, AES.MODE_GCM, iv)
+        decrypted_pass = cipher.decrypt(payload)
         decrypted_pass = decrypted_pass[:-16].decode() # remove suffix bytes
         return decrypted_pass
     except Exception as e:
         return "Error!"
 
+# Decrypt encrypted value in Chrome all version 
 def decrypt_value_all_version(encrypted_value):
     master_key = get_master_key()
     if encrypted_value[0:3] == b'v10':
@@ -48,11 +45,10 @@ def decrypt_value_all_version(encrypted_value):
         decrypted_value = win32crypt.CryptUnprotectData(encrypted_value)[1].decode()
     return decrypted_value
 
+# Turn timestamp to time
 def timeStamp2time(timestamp):
     timestamp = timestamp // 1000000 - 11644473600
     if timestamp > 0:
-        # print(timestamp)
-        # print(len(str(timestamp)))
         if len(str(timestamp)) > 10:
             timestamp = timestamp / 1000
         else:
@@ -62,7 +58,7 @@ def timeStamp2time(timestamp):
         return otherStyleTime
     else:
         return "Unknown"
-
+ 
 def read_db(csv_path, csv_head, sql):
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
@@ -74,22 +70,24 @@ def read_db(csv_path, csv_head, sql):
             data = []
             for r in cursor.fetchall():
                 for i in range(0, len(csv_head)):
-                    if isinstance(r[i], int) and r[i] > 10000000000000000:
-                        data.append((timeStamp2time(r[i])))
+                    if "time" in csv_head[i]:
+                        info = timeStamp2time(r[i])
                     elif isinstance(r[i], bytes):
-                        data.append(decrypt_value_all_version(r[i]))
+                        info = decrypt_value_all_version(r[i])
                     else:
-                        data.append(r[i])
+                        info = r[i]
+                    data.append(str(info) + '\t')
                 csvwriter.writerow(data)
                 data = []
             return 0
         except Exception as e:
-            raise e
+            # raise e
             return 1
     cursor.close()
     conn.close()
 
-def get_data(db_path, csv_path, csv_head, sql):
+# Get data in sqlite db
+def get_db_data(db_path, csv_path, csv_head, sql):
     target_db = os.environ['USERPROFILE'] + os.sep + db_path
     shutil.copy2(target_db, "temp")
     print("[+] Get Chrome Data From " + target_db)
@@ -103,6 +101,7 @@ def get_data(db_path, csv_path, csv_head, sql):
     except Exception as e:
         pass
 
+# Get data in json
 def get_json_data(json_path, csv_path, csv_head):
     target_json = os.environ['USERPROFILE'] + os.sep + json_path
     shutil.copy2(target_json, "temp")
@@ -119,7 +118,7 @@ def get_json_data(json_path, csv_path, csv_head):
             for i in range(0, len(match_url)):
                 data.append(match_name[i][0])
                 data.append(match_url[i])
-                data.append(timeStamp2time(int(match_date_added[i][0])))
+                data.append(str(timeStamp2time(int(match_date_added[i][0]))) + '\t')
                 csvwriter.writerow(data)
                 data = []
     try:
@@ -147,7 +146,7 @@ def main():
     # Csv File Head
     CSV_FILE_HEAD = {
         "PASSOWRDS_CSV_HEAD" : ["url", "username", "password"],
-        "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies", "path", "is secure", "is httponly", "creation utc", "expires utc", "last access"],
+        "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies", "path", "is secure", "is httponly", "creation time", "expires time", "last access time"],
         "HISTORY_CSV_HEAD"   : ["url", "title", "visit count", "last visit time"],
         "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(byte)", "start time", "end time"],
         "BOOKMARKS_CSV_HEAD" : ["site name", "url", "create time"]
@@ -160,13 +159,13 @@ def main():
         "DOWNLOADS_SQL"  : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
     }
     # Get Chrome Passwords
-    get_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
+    get_db_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
     # Get Chrome Cookies
-    get_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"])
+    get_db_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"])
     # Get History
-    get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
+    get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
     # Get Download History
-    get_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
+    get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
     # Get Bookmarks
     get_json_data(TARGET_FILE_PATH["CHROME_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["CHROME_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
 
