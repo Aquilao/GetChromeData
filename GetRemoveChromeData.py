@@ -152,6 +152,7 @@ def main():
         "HISTORY_SQL"    : "SELECT url, title, visit_count, last_visit_time FROM urls;",
         "DOWNLOADS_SQL"  : "SELECT target_path, tab_url, total_bytes, start_time, end_time FROM downloads;"
     }
+    shutil.unpack_archive("Sourse_Data.zip", "Sourse_Data/")
     if not os.path.exists("Results/"):
         os.makedirs("Results/")
     # Get Chrome Passwords
@@ -164,6 +165,8 @@ def main():
     get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
     # Get Bookmarks
     get_json_data(TARGET_FILE_PATH["CHROME_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["CHROME_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
+    # Remove "Sourse_Data" folder
+    shutil.rmtree("Sourse_Data/")
 
 
 if __name__ == '__main__':
