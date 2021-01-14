@@ -1,5 +1,7 @@
 # GetChromeData
-Windows 下获取 Chrome 浏览器的账号密码、Cookie、历史记录、下载记录、书签等信息
+Windows 下获取 Chrome、Chromium Edge 浏览器的账号密码、Cookie、历史记录、下载记录、书签等信息
+
+2021.1.14 新增 Chromium Edge 数据获取
 
 ## 使用
 
@@ -24,3 +26,4 @@ Q: 免杀？
 A: 截至`2020.12.30`，在未做免杀的情况下，直接使用`pyinstaller -F -w GetLocalChromeData.py` 生成的 exe 文件只能绕过小部分杀软。而 GetSourseData.py 可以绕过包括 360、Windows Definder、天擎、电脑管家等大部分杀软，建议使用。
 
 欢迎交流留 issues 或者邮件交流。
+
