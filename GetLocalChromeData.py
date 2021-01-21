@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# Get Chrome Data
+# Get Local Chrome Data
+# author: Aquilao
 # v0.7 dev
 
 import os
