@@ -1,7 +1,7 @@
 # GetChromeData
 Windows 下获取 Chrome、Chromium Edge 浏览器的账号密码、Cookie、历史记录、下载记录、书签等信息
 
-2021.1.14 新增 Chromium Edge 数据获取
+2021.1.14 v0.7 dev 新增 Chromium Edge 数据获取
 
 ## 使用
 
