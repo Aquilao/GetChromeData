@@ -1,5 +1,5 @@
 # GetChromeData
-**由于 python 糟糕的可移植性，该项目停止更新和维护。目前正在参加 [HackBrowserData](https://github.com/moonD4rk/HackBrowserData) 的开发，这是一个由 Go 编写的多平台浏览器信息采集项目，目前已经挺完善的，也在频繁更新，欢迎关注。**
+**由于 python 糟糕的可移植性，该项目停止更新和维护。现在用 Go 实现了一个新的工具，功能和支持的浏览器比市面上开源的大多数工具强些，由于目前在工作上使用，考虑到免杀，暂无开源计划。需要浏览器解密的工具推荐使用[HackBrowserData](https://github.com/moonD4rk/HackBrowserData)。**
 
 Windows 下获取 Chrome、Chromium Edge 浏览器的账号密码、Cookie、历史记录、下载记录、书签等信息
 
